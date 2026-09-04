@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=login.html">
+  <title>Punto de Venta</title>
+  <link href="./dist/css/app.css" rel="stylesheet" type="text/css">
+</head>
+<body class="bg-pos-bg flex items-center justify-center h-screen">
+  <div class="text-center px-6">
+    <!-- Logotipo (marca completa): visible en la portada/índice -->
+    <img class="h-16 w-auto mx-auto" src="/assets/logotipo.svg" alt="Punto de Venta">
+    <p class="text-pos-text-body/60 text-sm mt-4">Redirigiendo al inicio de sesión...</p>
+  </div>
+  <script>
+    // Si ya hay una sesión activa, saltar al módulo según el rol
+    if (localStorage.getItem('token')) {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || 'null');
+        window.location.replace(u?.rol === 'admin' ? 'dashboard.html' : 'pos.html');
+      } catch {
+        window.location.replace('dashboard.html');
+      }
+    } else {
+      window.location.replace('login.html');
+    }
+  </script>
+</body>
+</html>
+
