@@ -11,7 +11,8 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -33,6 +34,64 @@ class TokenRespuesta(BaseModel):
 
     access_token: str
     token_type: str = "bearer"
+
+
+class RegisterRequest(BaseModel):
+    """Payload del alta de usuario (registro público/local)."""
+
+    nombre: str = Field(..., min_length=1, max_length=255)
+    email: str
+    password: str = Field(..., min_length=6)
+
+    _normalizar_email = validator("email", allow_reuse=True)(
+        lambda v: v.strip().lower()
+    )
+
+
+@router.post(
+    "/register",
+    response_model=TokenRespuesta,
+    summary="Registrar un nuevo usuario (rol cajero por defecto)",
+)
+def registrar_usuario(
+    data: RegisterRequest,
+    db: Session = Depends(get_db),
+):
+    """Crea un usuario nuevo en SQLite y devuelve un token para iniciar sesión.
+
+    Reglas:
+      - El email debe ser único (rechaza duplicados con 409).
+      - El rol asignado por defecto es 'cajero' (nunca 'admin').
+      - El usuario se crea activo; un admin puede gestionar rol/estado después.
+    """
+    email = data.email.strip().lower()
+    existe = db.query(Usuario).filter(Usuario.email == email).first()
+    if existe is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ya existe una cuenta con ese correo electrónico",
+        )
+
+    usuario = Usuario(
+        email=email,
+        nombre_completo=data.nombre.strip(),
+        password_hash=hash_password(data.password),
+        rol="cajero",
+        activo=True,
+    )
+    db.add(usuario)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ya existe una cuenta con ese correo electrónico",
+        )
+    db.refresh(usuario)
+
+    token = crear_token_acceso(subject=usuario.id, rol=usuario.rol)
+    return TokenRespuesta(access_token=token)
 
 
 @router.post("/login", response_model=TokenRespuesta, summary="Iniciar sesión")

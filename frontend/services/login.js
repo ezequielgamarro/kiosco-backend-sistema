@@ -14,7 +14,7 @@ window['loginEmail'] = window['loginEmail'] ||
     // Delegar a auth.js si está disponible
     if (window.authAPI && typeof window.authAPI.login === 'function') {
       var perfil = await window.authAPI.login(email, password);
-      window.location.href = perfil && perfil.rol === 'admin' ? 'dashboard.html' : 'pos.html';
+      window.location.href = 'pos.html'; // dashboard eliminado en esta versión
       return perfil;
     }
     throw new Error('auth.js no cargado');

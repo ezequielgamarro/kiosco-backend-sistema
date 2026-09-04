@@ -30,6 +30,8 @@ from app.schemas.venta import (
     VentaOut,
     VentaDetalleOut,
     VentaItemOut,
+    VentaItemHistorialOut,
+    VentaHistorialOut,
 )
 
 router = APIRouter(prefix="/ventas", tags=["Ventas"])
@@ -240,6 +242,63 @@ def historial_ventas(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al consultar historial de ventas: {str(exc)}",
+        )
+
+
+def _serializar_historial(venta: Venta) -> VentaHistorialOut:
+    """Envuelve una venta con sus ítems enriquecidos en formato historial."""
+    items = [
+        VentaItemHistorialOut(
+            id=it.id,
+            producto_id=it.producto_id,
+            nombre_producto=it.producto.nombre,
+            cantidad=Decimal(it.cantidad),
+            precio_unitario=Decimal(it.precio_unitario),
+            descuento=Decimal(it.descuento or 0),
+            subtotal=(
+                Decimal(it.cantidad) * Decimal(it.precio_unitario)
+                - Decimal(it.descuento or 0)
+            ),
+        )
+        for it in venta.items
+    ]
+    return VentaHistorialOut(
+        id=venta.id,
+        folio=venta.folio,
+        fecha=venta.fecha,
+        total=Decimal(venta.total),
+        metodo_pago=venta.metodo_pago,
+        cliente=venta.cliente,
+        creado_en=venta.creado_en,
+        items=items,
+    )
+
+
+@router.get(
+    "/historial-detallado",
+    response_model=List[VentaHistorialOut],
+    summary="Historial de ventas con detalle de productos por ticket",
+)
+def historial_detallado(
+    limite: int = 200,
+    usuario: UsuarioActual = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Devuelve las ventas ordenadas de más reciente a más antigua, cada una
+    con la lista de productos vendidos (nombre e importes). Útil para el módulo
+    de Historial de Ventas agrupado por fecha."""
+    try:
+        limite = max(1, min(limite, 1000))
+        ventas = db.query(Venta).order_by(Venta.fecha.desc()).limit(limite).all()
+        # Materializar ítems/productos dentro de la sesión activa antes de usar.
+        for v in ventas:
+            _ = list(v.items)  # noqa: F841
+        return [_serializar_historial(v) for v in ventas]
+    except Exception as exc:  # pragma: no cover
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al consultar historial detallado: {str(exc)}",
         )
 
 

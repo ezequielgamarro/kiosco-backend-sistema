@@ -22,8 +22,9 @@ async def lifespan(app: FastAPI):
     """Ciclo de vida de la aplicación.
 
     En el arranque: crea el archivo `pos_local.db` (si no existe) y genera
-    todas las tablas definidas en los modelos, en un arranque idempotente
-    (no falla si ya existen).
+    todas las tablas definidas en los modelos (arranque idempotente). Después,
+    si la base está VACÍA, siembra automáticamente el usuario administrador
+    por defecto (ver app.seed) para permitir el primer acceso en una PC nueva.
     """
     import logging
 
@@ -31,6 +32,16 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Base de datos SQLite verificada y tablas sincronizadas.")
+
+        # Siembra automática del administrador en base vacía (producción).
+        from app.database import SessionLocal  # noqa: PLC0415
+        from app.seed import crear_admin_si_hace_falta  # noqa: PLC0415
+
+        db = SessionLocal()
+        try:
+            crear_admin_si_hace_falta(db)
+        finally:
+            db.close()
     except Exception:
         # No detener el arranque si la BD falla transitoriamente; el log
         # permite diagnosticar. En producción, revisar el log.

@@ -52,8 +52,16 @@ htmlcov/
 *.log
 logs/
 
+# Bases de datos locales (se generan en tiempo de ejecución / reset)
+pos_local.db
+*.sqlite
+*.sqlite3
+*.backup.sqlite
+*_backup.sqlite
+
 # Minio / Supabase local artifacts
 docker-data/
 
 # Docker
 *.pid
+

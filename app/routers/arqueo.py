@@ -55,28 +55,39 @@ def _obtener_caja_activa(db: Session) -> Arqueo:
 def _calcular_totales(db: Session, caja: Arqueo) -> dict:
     """Calcula los totales del turno de caja.
 
-    Retorna ventas_efectivo (hechas durante el turno), ingresos_manuales y
-    egresos_manuales. Las ventas se filtran por `fecha >= fecha_apertura` de la
-    caja (todas las ventas en efectivo posteriores a la apertura pertenecen al
-    turno mientras la caja esté abierta).
+    Retorna el monto de ventas en efectivo (las que "viven" en la gaveta) y el
+    desglose de las ventas con otros medios de pago (tarjeta, transferencia,
+    mixto), junto con los movimientos manuales. Las ventas se filtran por
+    `fecha >= fecha_apertura` de la caja (todas las ventas posteriores a la
+    apertura pertenecen al turno mientras la caja esté abierta).
     """
-    # Ventas en efectivo realizadas desde la apertura hasta ahora.
-    ventas = (
-        db.query(Venta)
-        .filter(
-            Venta.metodo_pago == "efectivo",
-            Venta.fecha >= caja.fecha_apertura,
-        )
-        .all()
-    )
-    ventas_efectivo = sum((Decimal(v.total) for v in ventas), Decimal("0"))
+    # Todas las ventas del turno (desde la apertura hasta ahora).
+    ventas = db.query(Venta).filter(Venta.fecha >= caja.fecha_apertura).all()
 
-    # Ingresos manuales del arqueo
+    ventas_efectivo = Decimal("0")
+    ventas_tarjeta = Decimal("0")
+    ventas_transferencia = Decimal("0")
+    ventas_mixto = Decimal("0")
+
+    for v in ventas:
+        monto = Decimal(v.total)
+        if v.metodo_pago == "efectivo":
+            ventas_efectivo += monto
+        elif v.metodo_pago == "tarjeta":
+            ventas_tarjeta += monto
+        elif v.metodo_pago == "transferencia":
+            ventas_transferencia += monto
+        elif v.metodo_pago == "mixto":
+            ventas_mixto += monto
+
+    # "Otros medios": todo lo que NO son ventas al contado de la gaveta.
+    otros_medios = ventas_tarjeta + ventas_transferencia + ventas_mixto
+
+    # Movimientos manuales del arqueo
     total_ingresos = sum(
         (Decimal(m.monto) for m in caja.movimientos if m.tipo == "ingreso"),
         Decimal("0"),
     )
-    # Egresos manuales del arqueo
     total_egresos = sum(
         (Decimal(m.monto) for m in caja.movimientos if m.tipo == "egreso"),
         Decimal("0"),
@@ -84,6 +95,10 @@ def _calcular_totales(db: Session, caja: Arqueo) -> dict:
 
     return {
         "ventas_efectivo": ventas_efectivo,
+        "ventas_tarjeta": ventas_tarjeta,
+        "ventas_transferencia": ventas_transferencia,
+        "ventas_mixto": ventas_mixto,
+        "otros_medios": otros_medios,
         "ingresos_manuales": total_ingresos,
         "egresos_manuales": total_egresos,
     }
@@ -227,6 +242,10 @@ def cerrar_caja(
             fecha_cierre=caja.fecha_cierre,
             monto_inicial=monto_inicial,
             ventas_efectivo=totales["ventas_efectivo"],
+            ventas_tarjeta=totales["ventas_tarjeta"],
+            ventas_transferencia=totales["ventas_transferencia"],
+            ventas_mixto=totales["ventas_mixto"],
+            otros_medios=totales["otros_medios"],
             ingresos_manuales=totales["ingresos_manuales"],
             egresos_manuales=totales["egresos_manuales"],
             total_esperado=total_esperado,
@@ -315,6 +334,10 @@ def resumen_caja(
             },
             "monto_inicial": monto_inicial,
             "ventas_efectivo": totales["ventas_efectivo"],
+            "ventas_tarjeta": totales["ventas_tarjeta"],
+            "ventas_transferencia": totales["ventas_transferencia"],
+            "ventas_mixto": totales["ventas_mixto"],
+            "otros_medios": totales["otros_medios"],
             "ingresos_manuales": totales["ingresos_manuales"],
             "egresos_manuales": totales["egresos_manuales"],
             "total_esperado": total_esperado,

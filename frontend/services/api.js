@@ -136,6 +136,7 @@ export const api = {
   /* ---------- Ventas ---------- */
   registerSale: (data) => authFetch('/ventas', { method: 'POST', body: data }),
   listSales: (params = '') => authFetch(`/ventas${params}`),
+  listSalesDetailed: (limite = 200) => authFetch(`/ventas/historial-detallado?limite=${limite}`),
   getSale: (id) => authFetch(`/ventas/${id}`),
   getSaleDetail: (id) => authFetch(`/ventas/${id}/detalle`),
 

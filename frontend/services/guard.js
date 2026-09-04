@@ -2,7 +2,7 @@
  * guard.js — Guardia de rutas y seguridad del frontend (backend local JWT).
  *
  * Script GLOBAL auto-ejecutable. Cargar en cada vista protegida
- * (pos.html, dashboard.html, inventario.html, caja.html) DESPUÉS de:
+ * (pos.html, inventario.html, caja.html) DESPUÉS de:
  *   <script src="./services/config.js"></script>
  *
  * RBAC / control de acceso por rol:
@@ -13,11 +13,13 @@
  *
  * Reglas:
  *   - Sin token        → redirige a login.html.
- *   - Rol 'admin'      → accede a dashboard.html e inventario.html.
+ *   - Rol 'admin'      → accede a inventario.html (gestión exclusiva del admin).
  *   - Rol 'cajero'     → se limita a pos.html/caja.html (se redirige desde admin).
  *   - Sin rol resuelto → NO se asume 'cajero' a ciegas: se conserva el rol
  *     cacheado en localStorage, evitando degradar a un admin por un fallo
  *     puntual de red o de decodificación.
+ *
+ * Nota: en esta versión ya no existe la vista dashboard.html.
  *
  * Expone `window.authGuardReady` (promesa) para que los módulos de las vistas
  * esperen a que la resolución termine antes de inicializarse.
@@ -25,7 +27,7 @@
 (function () {
   'use strict';
 
-  var ADMIN_ROUTES = /(dashboard|inventario)\.html$/;
+  var ADMIN_ROUTES = /inventario\.html$/;
   var TOKEN_KEY = 'token';   // clave del JWT (auth.js / api.js)
   var USER_KEY = 'user';
   var ROLE_KEY = 'rol';      // cache local del rol
@@ -156,7 +158,7 @@
     localStorage.setItem(USER_KEY, JSON.stringify(perfil));
 
     // 3) Control de acceso por rol.
-    //    Vista de gerencia (dashboard/inventario) exige rol === 'admin'.
+    //    Vista de gestión (inventario.html) exige rol === 'admin'.
     var esRutaAdmin = ADMIN_ROUTES.test(window.location.pathname);
     if (esRutaAdmin && rol !== 'admin') {
       window.location.replace('pos.html');

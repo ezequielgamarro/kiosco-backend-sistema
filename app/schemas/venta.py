@@ -117,3 +117,25 @@ class VentaDetalleOut(VentaOut):
     items: List[VentaItemOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class VentaItemHistorialOut(VentaItemOut):
+    """Ítem dentro del historial de ventas (incluye nombre de producto y subtotal).
+
+    Pensado para el módulo anillo de Ventas (ventas.html), donde se quiere
+    mostrar en cada ticket qué productos se vendieron sin resolver el nombre
+    del producto en el cliente.
+    """
+
+    nombre_producto: str
+    subtotal: Decimal  # (precio_unitario * cantidad) - descuento
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class VentaHistorialOut(VentaOut):
+    """Cabecera de venta con sus ítems enriquecidos para el reporte por fechas."""
+
+    items: List[VentaItemHistorialOut] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)

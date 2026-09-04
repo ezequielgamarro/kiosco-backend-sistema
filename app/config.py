@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api"
     DEBUG: bool = True
 
+    # Configuración del usuario administrador por defecto.
+    # Si la base queda VACÍA, el backend siembra este admin automáticamente en
+    # el arranque (ver app/seed.py). Recomendado configurar ADMIN_PASSWORD con
+    # una contraseña fuerte para entornos productivos.
+    ADMIN_EMAIL: str = ""  # fallback (vacío): admin@pos.local
+    ADMIN_NOMBRE_COMPLETO: str = ""  # fallback (vacío): "Administrador"
+    ADMIN_PASSWORD: str = ""  # si vacío: dev=admin123, prod=aleatoria
+
     # CORS (orígenes permitidos, separados por coma)
     CORS_ORIGINS: str = "*"
 

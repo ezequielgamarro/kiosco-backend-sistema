@@ -30,6 +30,33 @@ let productoPesoActual = null; // producto que se está cargando en el modal de 
 // ---------- Helpers de producto ----------
 function esPorPeso(p) { return (p.tipo_unidad || 'unidad') === 'peso'; }
 
+/**
+ * Etiqueta de unidad mostrada junto al precio en el catálogo.
+ * Centraliza el texto para impedir duplicados del sufijo "kg" (bug "/kgkg"):
+ *  - 'peso'    → "/kg"
+ *  - 'porcion' → "/porción"
+ *  - 'unidad'  → "/un." (precio por pieza)
+ */
+function sufijoUnidadPrecio(p) {
+  const t = p.tipo_unidad || 'unidad';
+  if (t === 'peso') return '/kg';
+  if (t === 'porcion') return '/porción';
+  return '/un.';
+}
+
+/**
+ * Formatea la cantidad física (stock) para mostrarla en la tarjeta.
+ * El backend entrega el stock como JSON string con ceros (p. ej. "36.000").
+ *  - 'unidad' / 'porcion' → entero sin decimales (36, no "36.000").
+ *  - 'peso'              → conserva decimales, pero sin ceros sobrantes ("1.5", no "1.500").
+ */
+function formatearStock(stock, tipo) {
+  const n = Number(stock || 0);
+  return (tipo || 'unidad') === 'peso'
+    ? String(Number(n.toFixed(3)))
+    : String(Math.trunc(n));
+}
+
 function unidadesDisponibles(linea) {
   const p = linea.producto;
   // Stock se mide en las mismas unidades que la venta (kg para peso, piezas para unidad)
@@ -64,9 +91,13 @@ function renderCatalogo(productos) {
   }
 
   productos.forEach((p) => {
-    const bajo = p.stock <= p.stock_minimo;
+    const bajo = Number(p.stock || 0) <= Number(p.stock_minimo || 0);
     const pesos = esPorPeso(p);
-    const unidad = (p.tipo_unidad || 'unidad') === 'porcion' ? 'porción' : (pesos ? 'kg' : 'un.');
+    const tipo = p.tipo_unidad || 'unidad';
+    // Sufijo único del precio (evita duplicados tipo "/kgkg").
+    const sufPrecio = sufijoUnidadPrecio(p);
+    // Stock formateado según la unidad: "36" para unidad, "1.5" para peso.
+    const stockTxt = formatearStock(p.stock, tipo);
     const card = document.createElement('button');
     card.type = 'button';
     card.className =
@@ -80,8 +111,8 @@ function renderCatalogo(productos) {
       </div>
       <p class="text-pos-text-body/50 text-xs mb-3 truncate">${p.codigo_barras || 'Sin código'}</p>
       <div class="flex items-end justify-between">
-        <span class="text-base font-bold text-pos-primary">${money(p.precio)}<span class="text-xs font-normal text-pos-text-body/50">/${unidad}</span></span>
-        <span class="text-xs text-pos-text-body/50">stock: ${p.stock} ${pesos ? 'kg' : ''}</span>
+        <span class="text-base font-bold text-pos-primary">${money(p.precio)}<span class="text-xs font-normal text-pos-text-body/50">${sufPrecio}</span></span>
+        <span class="text-xs text-pos-text-body/50">stock: ${stockTxt}${pesos ? ' kg' : ''}</span>
       </div>`;
     card.addEventListener('click', () => onSelectProducto(p));
     grid.appendChild(card);

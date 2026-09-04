@@ -120,6 +120,10 @@ class CierreOut(BaseModel):
     fecha_cierre: datetime
     monto_inicial: Decimal
     ventas_efectivo: Decimal
+    ventas_tarjeta: Decimal = Decimal("0")
+    ventas_transferencia: Decimal = Decimal("0")
+    ventas_mixto: Decimal = Decimal("0")
+    otros_medios: Decimal = Decimal("0")
     ingresos_manuales: Decimal
     egresos_manuales: Decimal
     total_esperado: Decimal
